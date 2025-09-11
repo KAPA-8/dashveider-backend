@@ -189,12 +189,6 @@ class EbiosRMStudy(NameDescriptionMixin, ETADueDateMixin, FolderMixin):
         verbose_name_plural = _("Ebios RM Studies")
         ordering = ["created_at"]
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        if self.quotation_method == "express":
-            for scenario in self.operational_scenarios.all():
-                scenario.update_likelihood_from_operating_modes()
-
     @property
     def parsed_matrix(self):
         return self.risk_matrix.parse_json_translated()
@@ -808,12 +802,6 @@ class OperatingMode(NameDescriptionMixin, FolderMixin):
     def save(self, *args, **kwargs):
         self.folder = self.operational_scenario.folder
         super().save(*args, **kwargs)
-        self.operational_scenario.update_likelihood_from_operating_modes()
-
-    def delete(self, *args, **kwargs):
-        operational_scenario = self.operational_scenario
-        super().delete(*args, **kwargs)
-        operational_scenario.update_likelihood_from_operating_modes()
 
     @property
     def ebios_rm_study(self):
@@ -974,18 +962,33 @@ class OperationalScenario(AbstractBaseModel, FolderMixin):
             "value": risk_index,
         }
 
-    def update_likelihood_from_operating_modes(self):
-        if self.ebios_rm_study.quotation_method != "express":
+    @receiver([post_save, post_delete], sender=OperatingMode)
+    def update_likelihood_from_operating_modes(sender, instance, **kwargs):
+        if instance.operational_scenario.ebios_rm_study.quotation_method != "express":
             return
 
         max_likelihood = (
-            self.operating_modes.aggregate(max_l=models.Max("likelihood"))["max_l"]
-            if self.operating_modes.exists()
+            instance.operational_scenario.operating_modes.aggregate(
+                max_l=models.Max("likelihood")
+            )["max_l"]
+            if instance.operational_scenario.operating_modes.exists()
             else -1
         )
 
-        self.likelihood = max_likelihood
-        self.save(update_fields=["likelihood"])
+        instance.operational_scenario.likelihood = max_likelihood
+        instance.operational_scenario.save(update_fields=["likelihood"])
+
+    @receiver(post_save, sender=EbiosRMStudy)
+    def update_scenarios_likelihood_on_quotation_method_change(
+        sender, instance, **kwargs
+    ):
+        if instance.quotation_method != "express":
+            return
+
+        for scenario in instance.operational_scenarios.all():
+            scenario.update_likelihood_from_operating_modes(
+                instance=scenario.operating_modes.first()
+            )
 
 
 class KillChain(AbstractBaseModel, FolderMixin):

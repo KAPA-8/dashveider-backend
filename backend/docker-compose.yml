@@ -1,0 +1,48 @@
+services:
+  backend:
+    container_name: dashveider-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - DASHVEIDER_URL=http://localhost:8000
+      - DJANGO_DEBUG=True
+      - AUTH_TOKEN_TTL=7200
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=plain
+      - MAIL_DEBUG=True
+    volumes:
+      - ./db:/code/db
+      - ./logs:/code/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/build || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
+
+  huey:
+    container_name: dashveider-huey
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - DASHVEIDER_URL=http://localhost:8000
+      - DJANGO_DEBUG=False
+      - AUTH_TOKEN_TTL=7200
+    volumes:
+      - ./db:/code/db
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        poetry run python manage.py run_huey -w 2 --scheduler-interval 60
+    restart: unless-stopped

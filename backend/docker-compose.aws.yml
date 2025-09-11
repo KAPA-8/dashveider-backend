@@ -1,0 +1,57 @@
+services:
+  backend:
+    container_name: dashveider-backend-prod
+    image: ghcr.io/intuitem/ciso-assistant-community/backend:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-your-domain.com}
+      - DASHVEIDER_URL=${DASHVEIDER_URL:-https://your-domain.com}
+      - DJANGO_DEBUG=False
+      - AUTH_TOKEN_TTL=7200
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - POSTGRES_NAME=${POSTGRES_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - USE_S3=${USE_S3:-True}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}
+      - AWS_S3_ENDPOINT_URL=${AWS_S3_ENDPOINT_URL}
+    volumes:
+      - ./db:/code/db
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/build || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: always
+
+  huey:
+    container_name: ciso-huey-prod
+    image: ghcr.io/intuitem/ciso-assistant-community/backend:latest
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-your-domain.com}
+      - DASHVEIDER_URL=${DASHVEIDER_URL:-https://your-domain.com}
+      - DJANGO_DEBUG=False
+      - AUTH_TOKEN_TTL=7200
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - POSTGRES_NAME=${POSTGRES_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+    volumes:
+      - ./db:/code/db
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        poetry run python manage.py run_huey -w 4 --scheduler-interval 60
+    restart: always
