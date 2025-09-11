@@ -20,3 +20,5 @@ pytest-report.html
 enterprise/
 *.log
 *.bak
+.env.aws
+

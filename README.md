@@ -71,8 +71,6 @@ Here’s an extract of some of the building blocks in CISO Assistant to illustra
 
 For full details, check the [data model documentation](documentation/architecture/data-model.md).
 
-
-
 ---
 
 ## Decoupling Concept
