@@ -177,10 +177,12 @@ PAGINATE_BY = int(os.environ.get("PAGINATE_BY", default=5000))
 # Application definition
 
 INSTALLED_APPS = [
+    "organizations.apps.OrganizationsConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.admin",
     "django.forms",
     "django_structlog",
     "auditlog",

@@ -7,10 +7,12 @@ from tprm.views import (
 )
 from library.views import StoredLibraryViewSet, LoadedLibraryViewSet
 import importlib
+from django.contrib import admin
 
 
 from django.urls import include, path
 from rest_framework import routers
+
 
 from ciso_assistant.settings import DEBUG
 from django.conf import settings
@@ -114,6 +116,7 @@ for route in ROUTES:
 
 
 urlpatterns = [
+    path("admin/", admin.site.urls),
     path("", include(router.urls)),
     path("iam/", include("iam.urls")),
     path("serdes/", include("serdes.urls")),
@@ -156,6 +159,7 @@ urlpatterns = [
         RiskAssessmentActionPlanList.as_view(),
     ),
     path("quick-start/", QuickStartView.as_view(), name="quick-start"),
+    path("organizations/", include("organizations.urls")),
 ]
 
 # Additional modules take precedence over the default modules
